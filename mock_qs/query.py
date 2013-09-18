@@ -1,21 +1,42 @@
+from mock_qs.constants import LOOKUP_SEP, LOOKUP_TERMS
+from mock_qs.exceptions import MockNotImplementedError
+
+
 class MockQuerySet(object):
     def __init__(self, results):
-        self.results = results
+        self._results = results
 
-    def filter(self, **kwargs): # ever just args?
-        return [r for r in self.results if [k for k, v in kwargs.iteritems() if getattr(r, k, None) == v]]
+    def __len__(self):
+        return len(self._results)
 
-# methods should accept result input and default to set.results if None ?
-# to allow chaining
+    def filter(self, **kwargs):
+        results = []
+        for res in self._results:
+            for key, val in kwargs.iteritems():
+                key_parts = key.split(LOOKUP_SEP)
+                if len(key_parts) > 1:
+                    if len(key_parts) == 2:
+                        field, lookup = key_parts
+                        if lookup in LOOKUP_TERMS:
+                            if getattr(res, field) in val:
+                                results.append(res)
+                        else:
+                            raise MockNotImplementedError
+                    else:
+                        raise MockNotImplementedError
+                elif getattr(res, key) == val:
+                    results.append(res)
+        return MockQuerySet(results)
 
-# keep filter, exclude, etc in parent and have django- and solr-specific
-# queries in subclasses
-
-# 'instance needs to have a primary key value before a many-to-many relationship can be used'
-# how does factory boy handle this?
 
 class DjangoQuerySet(MockQuerySet):
     pass
+
+
+class HaystackResult(object):
+    def __init__(self, **kwargs):
+        self.__dict__ = kwargs
+
 
 class HaystackQuerySet(MockQuerySet):
     pass
